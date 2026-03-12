@@ -1,58 +1,39 @@
-name: YouTube_Smart_Ninja_V2
+name: Audio_Extractor_Ninja
 
 on:
   workflow_dispatch:
     inputs:
-      youtube_url:
-        description: 'لینکی یوتیوب لێرە دابنێ'
+      video_url:
+        description: 'بەستەری ڤیدیۆکەی سەحەر تیڤی لێرە دابنێ'
         required: true
-      file_name:
-        description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
+      audio_name:
+        description: 'ناوی فایلەکە (تکایە بە mp3. کۆتایی بێت)'
         required: true
-        default: 'smart_movie.safetensors'
+        default: 'kurdish_dub.mp3'
 
 jobs:
-  smart_download:
+  extract_audio:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗️ ئامادەکردنی سێرڤەر
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y jq curl wget -qq
+          sudo apt-get install -y ffmpeg curl -qq
           pip install -q huggingface_hub
 
-      - name: 🕵️‍♂️ دزینی لینکی ڕاستەوخۆ بە API تازە
-        id: get_link
+      - name: ⬇️ داگرتنی ڤیدیۆکە بە خێرایی
         run: |
-          echo "خەریکی گۆڕینی لینکی یوتیوبەکەم..."
-          
-          # بەکارهێنانی سێرڤەرە تازەکەی کۆباڵت لەگەڵ ماسکی وێبگەڕ
-          RESPONSE=$(curl -s -X POST \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json" \
-            -H "Origin: https://cobalt.tools" \
-            -H "Referer: https://cobalt.tools/" \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-            -d "{\"url\":\"${{ github.event.inputs.youtube_url }}\"}" \
-            https://api.cobalt.tools/api/json)
-          
-          DIRECT_URL=$(echo $RESPONSE | jq -r '.url')
-          
-          if [ "$DIRECT_URL" = "null" ] || [ -z "$DIRECT_URL" ]; then
-            echo "❌ نەتوانرا لینکەکە دەربهێنرێت! وەڵامی سێرڤەر: $RESPONSE"
-            exit 1
-          fi
-          
-          echo "✅ لینکە ڕاستەوخۆکە دۆزرایەوە!"
-          echo "DIRECT_URL=$DIRECT_URL" >> $GITHUB_ENV
+          echo "خەریکی داگرتنی ڤیدیۆکەم..."
+          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o video.mp4 "${{ github.event.inputs.video_url }}"
 
-      - name: ⬇️ داگرتنی ڤیدیۆکە
+      - name: 🎵 جیاکردنەوەی دەنگەکە
         run: |
-          echo "خەریکی داگرتنی ڤیدیۆکەم لە لینکە پاکەکەوە..."
-          wget -q -O movie.mp4 "${{ env.DIRECT_URL }}"
-          echo "✅ داگرتن تەواو بوو!"
+          echo "خەریکی دەرهێنانی دەنگەکەم..."
+          # ئەم کۆدە تەنها دەنگەکە ڕادەکێشێت بەبێ دەستکاری کوالێتییەکەی
+          ffmpeg -i video.mp4 -q:a 0 -map a extracted_audio.mp3
+          echo "✅ دەنگەکە بە سەرکەوتوویی جیاکرایەوە!"
 
-      - name: 🚀 ناردن بۆ کۆگا
+      - name: 🚀 ناردنی بۆ کۆگا شاراوەکە
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -63,25 +44,27 @@ jobs:
           api = HfApi()
           repo_id = 'Sarko761/ai-training-data'
           token = os.environ.get('HF_TOKEN')
-          original_file_name = '${{ github.event.inputs.file_name }}'
+          file_name = '${{ github.event.inputs.audio_name }}'
           
-          if not (original_file_name.endswith('.safetensors') or original_file_name.endswith('.bin')):
-              file_name = original_file_name.split('.')[0] + '.safetensors'
-          else:
-              file_name = original_file_name
+          if not file_name.endswith('.mp3'):
+              file_name += '.mp3'
           
-          if os.path.exists('movie.mp4'):
-              print(f'ناردن بە ناوی: {file_name}')
+          print(f'ناردنی فایلە دەنگییەکە: {file_name}')
+          
+          if os.path.exists('extracted_audio.mp3'):
               api.upload_file(
-                  path_or_fileobj='movie.mp4',
+                  path_or_fileobj='extracted_audio.mp3',
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
                   token=token
               )
-              print('✅ بە سەرکەوتوویی فڕێنرا!')
-              os.remove('movie.mp4')
+              print('✅ بە سەرکەوتوویی نێردرا!')
+              
+              # خاوێنکردنەوەی سێرڤەرەکە
+              os.remove('video.mp4')
+              os.remove('extracted_audio.mp3')
           else:
-              print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
+              print('❌ کێشەیەک هەیە، دەنگەکە دەرنەهێنراوە.')
               exit(1)
           "
