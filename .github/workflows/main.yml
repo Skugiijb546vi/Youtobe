@@ -1,39 +1,47 @@
-name: YouTube_Final_Ninja
+name: YouTube_Smart_Ninja
 
 on:
   workflow_dispatch:
     inputs:
       youtube_url:
-        description: 'لینکی ڤیدیۆکە لێرە دابنێ'
+        description: 'لینکی یوتیوب لێرە دابنێ'
         required: true
       file_name:
         description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'movie_final.safetensors'
+        default: 'smart_movie.safetensors'
 
 jobs:
-  download_job:
+  smart_download:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗️ ئامادەکردنی سێرڤەر
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg nodejs -qq
-          # دابەزاندنی تازەترین ڤێرژن کە کێشەیەکانی تێدا چارەسەر کراوە
-          pip install -U https://github.com/yt-dlp/yt-dlp/archive/master.zip
-          pip install -U huggingface_hub curl_cffi
+          sudo apt-get install -y jq curl wget -qq
+          pip install -q huggingface_hub
 
-      - name: 🍪 دانانی ناسنامەکە
-        env:
-          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+      - name: 🕵️‍♂️ گۆڕینی لینکی یوتیوب بۆ ڕاستەوخۆ بە نهێنی
+        id: get_link
         run: |
-          echo "$YT_COOKIES" > cookies.txt
+          echo "خەریکی گۆڕینی لینکی یوتیوبەکەم بۆ ڕاستەوخۆ..."
+          # لێرەدا گیتھەب خۆی داوا لە سێرڤەرێکی دەرەکی دەکات لینکەکەمان بۆ بکات بە دایرێکت
+          RESPONSE=$(curl -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{\"url\":\"${{ github.event.inputs.youtube_url }}\"}" https://co.wuk.sh/api/json)
+          DIRECT_URL=$(echo $RESPONSE | jq -r '.url')
+          
+          if [ "$DIRECT_URL" = "null" ] || [ -z "$DIRECT_URL" ]; then
+            echo "❌ نەتوانرا لینکەکە دەربهێنرێت! ڕەنگە ڤیدیۆکە کێشەی هەبێت."
+            exit 1
+          fi
+          
+          echo "✅ لینکە ڕاستەوخۆکە بە سەرکەوتوویی دۆزرایەوە!"
+          echo "DIRECT_URL=$DIRECT_URL" >> $GITHUB_ENV
 
-      - name: ⬇️ داگرتن بە فێڵی مۆبایل و تەلەفزیۆن
+      - name: ⬇️ داگرتنی ڤیدیۆکە بێ کێشەی یوتیوب
         run: |
-          echo "خەریکی داگرتنم و خۆم کردووە بە مۆبایل..."
-          # لێرەدا پێی دەڵێین کە ئێمە ئەندرۆید و تەلەفزیۆنین بۆ ئەوەی بلۆکمان نەکات
-          yt-dlp --cookies cookies.txt --extractor-args "youtube:player_client=android,tv" -f "b" -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
+          echo "خەریکی داگرتنی ڤیدیۆکەم لە لینکە پاکەکەوە..."
+          wget -q -O movie.mp4 "${{ env.DIRECT_URL }}"
+          echo "✅ داگرتن تەواو بوو!"
 
       - name: 🚀 ناردن بۆ کۆگا شاراوەکە
         env:
@@ -53,17 +61,17 @@ jobs:
           else:
               file_name = original_file_name
           
-          if os.path.exists('video.mp4'):
+          if os.path.exists('movie.mp4'):
+              print(f'ناردن بە ناوی: {file_name}')
               api.upload_file(
-                  path_or_fileobj='video.mp4',
+                  path_or_fileobj='movie.mp4',
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
                   token=token
               )
               print('✅ بە سەرکەوتوویی فڕێنرا!')
-              os.remove('video.mp4')
-              os.remove('cookies.txt')
+              os.remove('movie.mp4')
           else:
               print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
               exit(1)
