@@ -1,40 +1,33 @@
-name: YouTube_To_HuggingFace_Ninja
+name: Direct_Transfer_Ninja
 
 on:
   workflow_dispatch:
     inputs:
-      youtube_url:
-        description: 'لینکی ڤیدیۆکە لە یوتیوب لێرە دابنێ'
+      direct_url:
+        description: 'لینکە ڕاستەوخۆکەی تێلیگرام (یان هەر سایتێک) لێرە دابنێ'
         required: true
       file_name:
-        description: 'ناوی فایلەکە (تکایە بە safetensors. کۆتایی بێت)'
+        description: 'ناوی فایلەکە بۆ کۆگاکەت (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'youtube_movie_v1.safetensors'
+        default: 'youtube_movie_final.safetensors'
 
 jobs:
-  youtube_job:
+  transfer_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ ئامادەکردنی سێرڤەر و ئامرازەکان
+      - name: 🏗️ ئامادەکردنی سێرڤەر
         run: |
           sudo apt-get update -qq
-          # لێرەدا nodejs مان زیاد کرد بۆ شکاندنی قوفڵی یوتیوب
-          sudo apt-get install -y ffmpeg nodejs -qq
-          pip install -U yt-dlp huggingface_hub curl_cffi
+          sudo apt-get install -y wget -qq
+          pip install -q huggingface_hub
 
-      - name: ⬇️ داگرتن لە یوتیوب بە شێوازی شاراوە (وەک ئەندرۆید)
+      - name: ⬇️ داگرتنی ڤیدیۆکە لە لینکە ڕاستەوخۆکەوە
         run: |
-          echo "خەریکی ڕاکێشانی ڤیدیۆکەم لە یوتیوبەوە..."
-          # بەکارهێنانی فێڵی ئەندرۆید بۆ تێپەڕاندنی بلۆکی یوتیوب
-          yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-                 --merge-output-format mp4 \
-                 --extractor-args "youtube:player_client=android,web" \
-                 --ignore-errors \
-                 -o "youtube_video.mp4" \
-                 "${{ github.event.inputs.youtube_url }}"
+          echo "خەریکی ڕاکێشانی ڤیدیۆکەم بەبێ هیچ قوفڵێک..."
+          wget -q -O downloaded_movie.mp4 "${{ github.event.inputs.direct_url }}"
           echo "داگرتنەکە تەواو بوو!"
 
-      - name: 🚀 شاردنەوە و ناردنی بۆ کۆگاکەمان
+      - name: 🚀 ناردنی بۆ هوگینگ فەیس بە ماسکەوە
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -52,18 +45,18 @@ jobs:
           else:
               file_name = original_file_name
           
-          print(f'ناردنی ڤیدیۆی یوتیوبەکە بە ناوی شاراوە: {file_name}')
+          print(f'ناردنی ڤیدیۆکە بە ناوی شاراوە: {file_name}')
           
-          if os.path.exists('youtube_video.mp4') and os.path.getsize('youtube_video.mp4') > 0:
+          if os.path.exists('downloaded_movie.mp4'):
               api.upload_file(
-                  path_or_fileobj='youtube_video.mp4',
+                  path_or_fileobj='downloaded_movie.mp4',
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
                   token=token
               )
               print('✅ ڤیدیۆکە بە سەرکەوتوویی گەیشتە کۆگاکە!')
-              os.remove('youtube_video.mp4')
+              os.remove('downloaded_movie.mp4')
           else:
               print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
               exit(1)
