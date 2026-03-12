@@ -1,33 +1,45 @@
-name: Direct_Transfer_Ninja
+name: YouTube_Cookies_Ninja
 
 on:
   workflow_dispatch:
     inputs:
-      direct_url:
-        description: 'لینکە ڕاستەوخۆکەی تێلیگرام (یان هەر سایتێک) لێرە دابنێ'
+      youtube_url:
+        description: 'لینکی یوتیوب لێرە دابنێ'
         required: true
       file_name:
-        description: 'ناوی فایلەکە بۆ کۆگاکەت (بە safetensors. کۆتایی بێت)'
+        description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'youtube_movie_final.safetensors'
+        default: 'youtube_secret_movie.safetensors'
 
 jobs:
-  transfer_job:
+  youtube_job:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗️ ئامادەکردنی سێرڤەر
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y wget -qq
-          pip install -q huggingface_hub
+          sudo apt-get install -y ffmpeg nodejs -qq
+          pip install -q -U yt-dlp huggingface_hub
 
-      - name: ⬇️ داگرتنی ڤیدیۆکە لە لینکە ڕاستەوخۆکەوە
+      - name: 🍪 دروستکردنی ناسنامەی مرۆڤبوون (کووکیس)
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
-          echo "خەریکی ڕاکێشانی ڤیدیۆکەم بەبێ هیچ قوفڵێک..."
-          wget -q -O downloaded_movie.mp4 "${{ github.event.inputs.direct_url }}"
-          echo "داگرتنەکە تەواو بوو!"
+          echo "$YT_COOKIES" > cookies.txt
+          echo "ناسنامەکە دروست کرا!"
 
-      - name: 🚀 ناردنی بۆ هوگینگ فەیس بە ماسکەوە
+      - name: ⬇️ داگرتن لە یوتیوب بە ناسنامەی ساختەوە
+        run: |
+          echo "خەریکی هەڵمژینی ڤیدیۆکەم لە یوتیوب..."
+          yt-dlp --cookies cookies.txt \
+                 -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+                 --merge-output-format mp4 \
+                 --ignore-errors \
+                 -o "youtube_video.mp4" \
+                 "${{ github.event.inputs.youtube_url }}"
+          echo "ڤیدیۆکە بەتەواوی و بێ کێشە داگیرا!"
+
+      - name: 🚀 ناردنی بۆ کۆگا شاراوەکە
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -45,18 +57,18 @@ jobs:
           else:
               file_name = original_file_name
           
-          print(f'ناردنی ڤیدیۆکە بە ناوی شاراوە: {file_name}')
-          
-          if os.path.exists('downloaded_movie.mp4'):
+          if os.path.exists('youtube_video.mp4') and os.path.getsize('youtube_video.mp4') > 0:
+              print(f'ناردنی بۆ هوگینگ فەیس بە ناوی: {file_name}')
               api.upload_file(
-                  path_or_fileobj='downloaded_movie.mp4',
+                  path_or_fileobj='youtube_video.mp4',
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
                   token=token
               )
-              print('✅ ڤیدیۆکە بە سەرکەوتوویی گەیشتە کۆگاکە!')
-              os.remove('downloaded_movie.mp4')
+              print('✅ فیلمەکە بە سەرکەوتوویی فڕێنرا!')
+              os.remove('youtube_video.mp4')
+              os.remove('cookies.txt')
           else:
               print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
               exit(1)
