@@ -1,45 +1,32 @@
-name: YouTube_Cookies_Ninja
+name: YouTube_Simple_Ninja
 
 on:
   workflow_dispatch:
     inputs:
       youtube_url:
-        description: 'لینکی یوتیوب لێرە دابنێ'
+        description: 'لینکەکە لێرە دابنێ'
         required: true
       file_name:
         description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'youtube_secret_movie.safetensors'
+        default: 'movie_simple.safetensors'
 
 jobs:
-  youtube_job:
+  simple_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ ئامادەکردنی سێرڤەر
+      - name: 🏗️ ئامادەکردنی سێرڤەر بە سادەیی
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg nodejs -qq
-          pip install -q -U yt-dlp huggingface_hub
+          pip install -U yt-dlp huggingface_hub
 
-      - name: 🍪 دروستکردنی ناسنامەی مرۆڤبوون (کووکیس)
-        env:
-          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+      - name: ⬇️ داگرتنی ڤیدیۆکە بێ ئاڵۆزی
         run: |
-          echo "$YT_COOKIES" > cookies.txt
-          echo "ناسنامەکە دروست کرا!"
+          echo "خەریکی داگرتنم بە ڕێگا سادەکە..."
+          yt-dlp -f "best" -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
 
-      - name: ⬇️ داگرتن لە یوتیوب بە ناسنامەی ساختەوە
-        run: |
-          echo "خەریکی هەڵمژینی ڤیدیۆکەم لە یوتیوب..."
-          yt-dlp --cookies cookies.txt \
-                 -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-                 --merge-output-format mp4 \
-                 --ignore-errors \
-                 -o "youtube_video.mp4" \
-                 "${{ github.event.inputs.youtube_url }}"
-          echo "ڤیدیۆکە بەتەواوی و بێ کێشە داگیرا!"
-
-      - name: 🚀 ناردنی بۆ کۆگا شاراوەکە
+      - name: 🚀 ناردنی بۆ کۆگاکە
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -57,18 +44,16 @@ jobs:
           else:
               file_name = original_file_name
           
-          if os.path.exists('youtube_video.mp4') and os.path.getsize('youtube_video.mp4') > 0:
-              print(f'ناردنی بۆ هوگینگ فەیس بە ناوی: {file_name}')
+          if os.path.exists('video.mp4'):
               api.upload_file(
-                  path_or_fileobj='youtube_video.mp4',
+                  path_or_fileobj='video.mp4',
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
                   token=token
               )
-              print('✅ فیلمەکە بە سەرکەوتوویی فڕێنرا!')
-              os.remove('youtube_video.mp4')
-              os.remove('cookies.txt')
+              print('✅ بە سەرکەوتوویی تەواو بوو!')
+              os.remove('video.mp4')
           else:
               print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
               exit(1)
