@@ -1,4 +1,4 @@
-name: YouTube_Simple_Ninja
+name: YouTube_Ultra_Simple
 
 on:
   workflow_dispatch:
@@ -9,22 +9,23 @@ on:
       file_name:
         description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'movie_simple.safetensors'
+        default: 'movie_final.safetensors'
 
 jobs:
-  simple_job:
+  download_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ ئامادەکردنی سێرڤەر بە سادەیی
+      - name: 🏗️ ئامادەکردنی سێرڤەر
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg nodejs -qq
           pip install -U yt-dlp huggingface_hub
 
-      - name: ⬇️ داگرتنی ڤیدیۆکە بێ ئاڵۆزی
+      - name: ⬇️ داگرتنی ڤیدیۆکە بە فێڵی گۆڕینی هێڵ
         run: |
           echo "خەریکی داگرتنم بە ڕێگا سادەکە..."
-          yt-dlp -f "best" -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
+          # وشەی زیادت بۆ دانراوە تاوەکو بلۆکەکەی یوتیوب تێپەڕێنێت
+          yt-dlp --force-ipv4 --merge-output-format mp4 -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
 
       - name: 🚀 ناردنی بۆ کۆگاکە
         env:
