@@ -15,17 +15,20 @@ jobs:
   youtube_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ ئامادەکردنی سێرڤەر بۆ یوتیوب
+      - name: 🏗️ ئامادەکردنی سێرڤەر و ئامرازەکان
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg -qq
-          pip install -q yt-dlp huggingface_hub
+          # لێرەدا nodejs مان زیاد کرد بۆ شکاندنی قوفڵی یوتیوب
+          sudo apt-get install -y ffmpeg nodejs -qq
+          pip install -U yt-dlp huggingface_hub curl_cffi
 
-      - name: ⬇️ داگرتن لە یوتیوب بە بەرزترین کوالێتی
+      - name: ⬇️ داگرتن لە یوتیوب بە شێوازی شاراوە (وەک ئەندرۆید)
         run: |
           echo "خەریکی ڕاکێشانی ڤیدیۆکەم لە یوتیوبەوە..."
+          # بەکارهێنانی فێڵی ئەندرۆید بۆ تێپەڕاندنی بلۆکی یوتیوب
           yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --merge-output-format mp4 \
+                 --extractor-args "youtube:player_client=android,web" \
                  --ignore-errors \
                  -o "youtube_video.mp4" \
                  "${{ github.event.inputs.youtube_url }}"
@@ -44,7 +47,6 @@ jobs:
           token = os.environ.get('HF_TOKEN')
           original_file_name = '${{ github.event.inputs.file_name }}'
           
-          # هێشتنەوەی ماسکەکە بۆ سەلامەتی
           if not (original_file_name.endswith('.safetensors') or original_file_name.endswith('.bin')):
               file_name = original_file_name.split('.')[0] + '.safetensors'
           else:
@@ -52,7 +54,7 @@ jobs:
           
           print(f'ناردنی ڤیدیۆی یوتیوبەکە بە ناوی شاراوە: {file_name}')
           
-          if os.path.exists('youtube_video.mp4'):
+          if os.path.exists('youtube_video.mp4') and os.path.getsize('youtube_video.mp4') > 0:
               api.upload_file(
                   path_or_fileobj='youtube_video.mp4',
                   path_in_repo=file_name,
@@ -61,7 +63,6 @@ jobs:
                   token=token
               )
               print('✅ ڤیدیۆکە بە سەرکەوتوویی گەیشتە کۆگاکە!')
-              
               os.remove('youtube_video.mp4')
           else:
               print('❌ کێشەیەک هەیە، ڤیدیۆکە دانەبەزیوە.')
