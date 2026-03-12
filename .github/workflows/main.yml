@@ -1,4 +1,4 @@
-name: YouTube_Smart_Ninja
+name: YouTube_Smart_Ninja_V2
 
 on:
   workflow_dispatch:
@@ -21,29 +21,38 @@ jobs:
           sudo apt-get install -y jq curl wget -qq
           pip install -q huggingface_hub
 
-      - name: 🕵️‍♂️ گۆڕینی لینکی یوتیوب بۆ ڕاستەوخۆ بە نهێنی
+      - name: 🕵️‍♂️ دزینی لینکی ڕاستەوخۆ بە API تازە
         id: get_link
         run: |
-          echo "خەریکی گۆڕینی لینکی یوتیوبەکەم بۆ ڕاستەوخۆ..."
-          # لێرەدا گیتھەب خۆی داوا لە سێرڤەرێکی دەرەکی دەکات لینکەکەمان بۆ بکات بە دایرێکت
-          RESPONSE=$(curl -s -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{\"url\":\"${{ github.event.inputs.youtube_url }}\"}" https://co.wuk.sh/api/json)
+          echo "خەریکی گۆڕینی لینکی یوتیوبەکەم..."
+          
+          # بەکارهێنانی سێرڤەرە تازەکەی کۆباڵت لەگەڵ ماسکی وێبگەڕ
+          RESPONSE=$(curl -s -X POST \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://cobalt.tools" \
+            -H "Referer: https://cobalt.tools/" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+            -d "{\"url\":\"${{ github.event.inputs.youtube_url }}\"}" \
+            https://api.cobalt.tools/api/json)
+          
           DIRECT_URL=$(echo $RESPONSE | jq -r '.url')
           
           if [ "$DIRECT_URL" = "null" ] || [ -z "$DIRECT_URL" ]; then
-            echo "❌ نەتوانرا لینکەکە دەربهێنرێت! ڕەنگە ڤیدیۆکە کێشەی هەبێت."
+            echo "❌ نەتوانرا لینکەکە دەربهێنرێت! وەڵامی سێرڤەر: $RESPONSE"
             exit 1
           fi
           
-          echo "✅ لینکە ڕاستەوخۆکە بە سەرکەوتوویی دۆزرایەوە!"
+          echo "✅ لینکە ڕاستەوخۆکە دۆزرایەوە!"
           echo "DIRECT_URL=$DIRECT_URL" >> $GITHUB_ENV
 
-      - name: ⬇️ داگرتنی ڤیدیۆکە بێ کێشەی یوتیوب
+      - name: ⬇️ داگرتنی ڤیدیۆکە
         run: |
           echo "خەریکی داگرتنی ڤیدیۆکەم لە لینکە پاکەکەوە..."
           wget -q -O movie.mp4 "${{ env.DIRECT_URL }}"
           echo "✅ داگرتن تەواو بوو!"
 
-      - name: 🚀 ناردن بۆ کۆگا شاراوەکە
+      - name: 🚀 ناردن بۆ کۆگا
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
