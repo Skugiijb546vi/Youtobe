@@ -1,15 +1,15 @@
-name: YouTube_Cookie_Simple
+name: YouTube_Final_Ninja
 
 on:
   workflow_dispatch:
     inputs:
       youtube_url:
-        description: 'لینکی یوتیوبەکە لێرە دابنێ'
+        description: 'لینکی ڤیدیۆکە لێرە دابنێ'
         required: true
       file_name:
         description: 'ناوی فایلەکە (بە safetensors. کۆتایی بێت)'
         required: true
-        default: 'movie_bypassed.safetensors'
+        default: 'movie_final.safetensors'
 
 jobs:
   download_job:
@@ -19,20 +19,23 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg nodejs -qq
-          pip install -U yt-dlp huggingface_hub
+          # دابەزاندنی تازەترین ڤێرژن کە کێشەیەکانی تێدا چارەسەر کراوە
+          pip install -U https://github.com/yt-dlp/yt-dlp/archive/master.zip
+          pip install -U huggingface_hub curl_cffi
 
-      - name: 🍪 دروستکردنی ناسنامەی مرۆڤبوون (بۆ شکاندنی بلۆک)
+      - name: 🍪 دانانی ناسنامەکە
         env:
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           echo "$YT_COOKIES" > cookies.txt
 
-      - name: ⬇️ داگرتن بەبێ کێشەی ڕۆبۆت
+      - name: ⬇️ داگرتن بە فێڵی مۆبایل و تەلەفزیۆن
         run: |
-          echo "خەریکی داگرتنم بە بەکارهێنانی ناسنامەکە..."
-          yt-dlp --cookies cookies.txt -f "best" -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
+          echo "خەریکی داگرتنم و خۆم کردووە بە مۆبایل..."
+          # لێرەدا پێی دەڵێین کە ئێمە ئەندرۆید و تەلەفزیۆنین بۆ ئەوەی بلۆکمان نەکات
+          yt-dlp --cookies cookies.txt --extractor-args "youtube:player_client=android,tv" -f "b" -o "video.mp4" "${{ github.event.inputs.youtube_url }}"
 
-      - name: 🚀 ناردن بۆ کۆگا
+      - name: 🚀 ناردن بۆ کۆگا شاراوەکە
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -58,7 +61,7 @@ jobs:
                   repo_type='dataset',
                   token=token
               )
-              print('✅ ڤیدیۆکە بە سەرکەوتوویی نێردرا!')
+              print('✅ بە سەرکەوتوویی فڕێنرا!')
               os.remove('video.mp4')
               os.remove('cookies.txt')
           else:
